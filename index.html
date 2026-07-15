@@ -384,19 +384,16 @@
       <div class="keyword-card" style="--rot: -2.5deg">
         <span class="card-tag">Who</span>
         <span class="card-word" id="whoWord">?</span>
-        <span class="card-hint" id="whoHint">press generate</span>
       </div>
 
       <div class="keyword-card" style="--rot: 1.2deg">
         <span class="card-tag">Where</span>
         <span class="card-word" id="whereWord">?</span>
-        <span class="card-hint" id="whereHint">press generate</span>
       </div>
 
       <div class="keyword-card" style="--rot: -0.8deg">
         <span class="card-tag">When</span>
         <span class="card-word" id="whenWord">?</span>
-        <span class="card-hint" id="whenHint">press generate</span>
       </div>
 
       <div class="keyword-card" style="--rot: 2.1deg">
@@ -582,11 +579,8 @@
     cards.forEach(c => { c.classList.remove('animate'); void c.offsetWidth; });
 
     document.getElementById('whoWord').textContent   = who.word;
-    document.getElementById('whoHint').textContent   = who.hint;
     document.getElementById('whereWord').textContent = where.word;
-    document.getElementById('whereHint').textContent = where.hint;
     document.getElementById('whenWord').textContent  = when.word;
-    document.getElementById('whenHint').textContent  = when.hint;
     document.getElementById('whyWord').textContent   = why.word;
     document.getElementById('whyHint').textContent   = why.hint;
 
