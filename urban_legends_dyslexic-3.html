@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Urban Legends — Story Generator</title>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:       #1A1A2E;   /* testo principale — blu-inchiostro scuro, non nero puro */
+      --panel:     #EDE8DC;   /* sfondo pannelli / sezione WB */
+      --card-bg:   #D4B896;   /* carta delle card — invariato, funziona su chiaro */
+      --card-aged: #C4A47C;   /* bordo strappato card */
+      --blood:     #8B2020;   /* rosso accento — invariato */
+      --fog:       #FDF6E3;   /* sfondo pagina — crema carta */
+      --muted:     #6B6078;   /* testo secondario su sfondo chiaro */
+      --accent:    #7A5C00;   /* oro scurito per leggibilità su chiaro */
+    }
+
+    html, body {
+      min-height: 100vh;
+      background-color: var(--fog);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── BACKGROUND TEXTURE (sottile, su chiaro) ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── LAYOUT ── */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── HEADER ── */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #C8B89A;
+    }
+
+    .eyebrow {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+
+    h1 {
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 900;
+      font-size: clamp(2.2rem, 7vw, 4rem);
+      line-height: 1.1;
+      color: var(--blood);
+      text-shadow: 1px 1px 0 #55000033;
+      animation: flicker 8s infinite;
+    }
+
+    @keyframes flicker {
+      0%,97%,100%  { opacity: 1; }
+      98%          { opacity: 0.6; }
+      98.5%        { opacity: 1; }
+      99%          { opacity: 0.4; }
+      99.5%        { opacity: 1; }
+    }
+
+    .subtitle {
+      margin-top: 0.8rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    /* ── INSTRUCTIONS ── */
+    .instructions {
+      background: var(--panel);
+      border-left: 3px solid var(--blood);
+      padding: 1rem 1.2rem;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 2.5rem;
+      font-size: 0.88rem;
+      line-height: 1.9;
+      color: #3a3050;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .instructions strong { color: var(--ink); }
+    .instructions ol { margin-left: 1.4rem; }
+    .instructions li { margin: 0.4rem 0; }
+
+    /* ── SECTION LABELS ── */
+    .section-label {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--blood);
+      margin-bottom: 1rem;
+    }
+
+    /* ── KEYWORD CARDS ── */
+    .cards-area {
+      margin-bottom: 2.5rem;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 560px) {
+      .cards-grid { grid-template-columns: 1fr; }
+    }
+
+    .keyword-card {
+      background: var(--card-bg);
+      color: #1a100a;
+      border-radius: 2px;
+      padding: 1.1rem 1rem 1rem;
+      position: relative;
+      box-shadow:
+        2px 3px 0 #8a6a4a,
+        3px 5px 12px #00000033;
+      transform: rotate(var(--rot, 0deg));
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: default;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      border-top: none;
+    }
+
+    .keyword-card::before {
+      content: '';
+      position: absolute;
+      top: -6px; left: 0; right: 0;
+      height: 6px;
+      background: var(--card-aged);
+      clip-path: polygon(
+        0% 100%, 3% 0%, 7% 80%, 12% 10%, 17% 90%,
+        23% 5%,  28% 85%, 33% 15%, 39% 95%,
+        45% 0%,  50% 80%, 56% 20%, 62% 100%,
+        67% 10%, 72% 90%, 78% 0%,  83% 85%,
+        88% 5%,  93% 95%, 97% 15%, 100% 100%
+      );
+    }
+
+    .keyword-card::after {
+      content: '📌';
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.1rem;
+      filter: drop-shadow(0 2px 3px #00000088);
+    }
+
+    .keyword-card:hover {
+      transform: rotate(0deg) scale(1.04);
+      box-shadow: 3px 5px 18px #00000044;
+    }
+
+    .card-tag {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--blood);
+      font-weight: bold;
+    }
+
+    .card-word {
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: bold;
+      font-size: 1.15rem;
+      line-height: 1.35;
+      color: #1a100a;
+    }
+
+    .card-hint {
+      font-size: 0.75rem;
+      color: #6a4a30;
+      font-style: normal;
+      margin-top: auto;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+
+    /* ── GENERATE BUTTON ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--blood);
+      color: var(--fog);
+      border: none;
+      padding: 0.75rem 1.6rem;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.88rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 2px 3px 0 #550000, 3px 5px 10px #00000033;
+    }
+
+    .btn:hover  { background: #a02828; }
+    .btn:active { transform: translateY(1px); box-shadow: 1px 1px 0 #550000; }
+
+    .btn-icon { font-size: 1.1rem; }
+
+    .btn-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      border: none;
+      border-top: 1px dashed #C0B09A;
+      margin: 2.5rem 0;
+    }
+
+    /* ── WRITER'S BLOCK SECTION ── */
+    .wb-section {
+      background: var(--panel);
+      border: 1px solid #C8B89A;
+      border-radius: 4px;
+      padding: 1.5rem;
+    }
+
+    .wb-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .wb-title {
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: bold;
+      font-size: 1.3rem;
+      color: var(--ink);
+    }
+
+    .wb-badge {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.58rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: #EDE0C8;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 0.2rem 0.5rem;
+      border-radius: 2px;
+    }
+
+    .wb-description {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+      line-height: 1.8;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .wb-result {
+      min-height: 3.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.2rem;
+    }
+
+    .wb-word {
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: bold;
+      font-size: 1.8rem;
+      color: var(--blood);
+      text-shadow: none;
+      transition: opacity 0.3s;
+    }
+
+    .wb-word.hidden { opacity: 0; }
+
+    .wb-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .wb-pos {
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .wb-definition {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-style: normal;
+      max-width: 320px;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-size: 0.65rem;
+      color: #9090A0;
+      letter-spacing: 0.06em;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes cardIn {
+      from { opacity: 0; transform: rotate(var(--rot)) translateY(12px); }
+      to   { opacity: 1; transform: rotate(var(--rot)) translateY(0); }
+    }
+
+    .keyword-card.animate {
+      animation: cardIn 0.4s ease forwards;
+    }
+
+    .keyword-card.animate:nth-child(2) { animation-delay: 0.08s; }
+    .keyword-card.animate:nth-child(3) { animation-delay: 0.16s; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <header>
+    <p class="eyebrow">English Writing Activity</p>
+    <h1>Urban Legends</h1>
+    <p class="subtitle">Story Starter Generator &nbsp;·&nbsp; Level A2–B1</p>
+  </header>
+
+  <!-- INSTRUCTIONS -->
+  <div class="instructions">
+    <strong>How to play:</strong>
+    <ol>
+      <li>Click <strong>"Generate Story"</strong> to get your four keyword clues.</li>
+      <li>Use the four keywords — <strong>Who, Where, When,</strong> and <strong>Why</strong> — as the starting point for your story.</li>
+      <li>Write <strong>4–6 sentences</strong> using <em>past simple</em> and <em>past continuous</em>, and at least <strong>two adjectives</strong>.</li>
+      <li>Stuck? Hit <strong>"Give me a word"</strong> for an extra noun to inspire you.</li>
+    </ol>
+  </div>
+
+  <!-- KEYWORD CARDS -->
+  <div class="cards-area">
+    <p class="section-label">▸ Your story clues</p>
+    <div class="cards-grid" id="cardsGrid">
+
+      <div class="keyword-card" style="--rot: -2.5deg">
+        <span class="card-tag">Who</span>
+        <span class="card-word" id="whoWord">?</span>
+        <span class="card-hint" id="whoHint">press generate</span>
+      </div>
+
+      <div class="keyword-card" style="--rot: 1.2deg">
+        <span class="card-tag">Where</span>
+        <span class="card-word" id="whereWord">?</span>
+        <span class="card-hint" id="whereHint">press generate</span>
+      </div>
+
+      <div class="keyword-card" style="--rot: -0.8deg">
+        <span class="card-tag">When</span>
+        <span class="card-word" id="whenWord">?</span>
+        <span class="card-hint" id="whenHint">press generate</span>
+      </div>
+
+      <div class="keyword-card" style="--rot: 2.1deg">
+        <span class="card-tag">Why</span>
+        <span class="card-word" id="whyWord">?</span>
+        <span class="card-hint" id="whyHint">press generate</span>
+      </div>
+
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="generateKeywords()">
+        <span class="btn-icon">🕯</span> Generate Story
+      </button>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- WRITER'S BLOCK SECTION -->
+  <div class="wb-section">
+    <div class="wb-header">
+      <span class="wb-title">🕸 Writer's Block?</span>
+      <span class="wb-badge">noun · max B1</span>
+    </div>
+    <p class="wb-description">
+      Get a mystery noun to spark your imagination. Add it to your story in any way you like.
+    </p>
+
+    <div class="wb-result">
+      <span class="wb-word hidden" id="wbWord">—</span>
+      <div class="wb-meta" id="wbMeta" style="display:none">
+        <span class="wb-pos">noun</span>
+        <span class="wb-definition" id="wbDefinition"></span>
+      </div>
+    </div>
+
+    <button class="btn" onclick="generateNoun()">
+      <span class="btn-icon">🔮</span> Give me a word
+    </button>
+  </div>
+
+  <footer>
+    Urban Legends Writing Activity &nbsp;·&nbsp; Past Simple &amp; Past Continuous &nbsp;·&nbsp; A2–B1
+  </footer>
+</div>
+
+<script>
+  const WHO = [
+    { word: "a stranger",    hint: "someone nobody knew" },
+    { word: "a babysitter",  hint: "alone with the children" },
+    { word: "two teenagers", hint: "looking for adventure" },
+    { word: "an old woman",  hint: "who lived on the edge of town" },
+    { word: "a taxi driver", hint: "working the night shift" },
+    { word: "a hiker",       hint: "lost in the woods" },
+    { word: "a nurse",       hint: "after a long night shift" },
+    { word: "a young couple",hint: "on a road trip" },
+    { word: "a jogger",      hint: "running at sunrise" },
+    { word: "a mechanic",    hint: "stranded on the highway" },
+    { word: "a security guard", hint: "patrolling alone" },
+    { word: "a delivery man",hint: "with a strange address" },
+    { word: "a student",     hint: "studying late at night" },
+    { word: "a fisherman",   hint: "out before dawn" },
+    { word: "a child",       hint: "who wandered off alone" },
+  ];
+
+  const WHERE = [
+    { word: "an old tunnel",      hint: "closed for years" },
+    { word: "a hospital",         hint: "shut down long ago" },
+    { word: "a dark forest",      hint: "outside the city" },
+    { word: "a back road",        hint: "with no streetlights" },
+    { word: "an empty parking lot", hint: "after midnight" },
+    { word: "a school",           hint: "during summer break" },
+    { word: "a cemetery",         hint: "at the edge of town" },
+    { word: "a highway rest stop", hint: "miles from anywhere" },
+    { word: "a subway station",   hint: "the last train already gone" },
+    { word: "an old bridge",      hint: "above the river" },
+    { word: "a hotel",            hint: "with a strange reputation" },
+    { word: "a shopping mall",    hint: "after closing time" },
+    { word: "a lake",             hint: "deep in the mountains" },
+    { word: "a church",           hint: "abandoned for decades" },
+    { word: "a basement",         hint: "no one ever opened" },
+  ];
+
+  const WHEN = [
+    { word: "at midnight",       hint: "the clock had just struck twelve" },
+    { word: "on Halloween",      hint: "the scariest night of the year" },
+    { word: "in a storm",        hint: "the rain was pouring down" },
+    { word: "during a blackout", hint: "all the lights went out" },
+    { word: "last winter",       hint: "the ground was covered in snow" },
+    { word: "at dawn",           hint: "before the sun came up" },
+    { word: "on a foggy evening",hint: "you could barely see" },
+    { word: "years ago",         hint: "nobody talks about it now" },
+    { word: "late at night",     hint: "everyone else was asleep" },
+    { word: "on a Friday the 13th", hint: "a bad omen" },
+    { word: "in autumn",         hint: "the leaves were falling" },
+    { word: "just after dark",   hint: "the streets were empty" },
+    { word: "on a cold night",   hint: "you could see your breath" },
+    { word: "in the early hours",hint: "between night and morning" },
+    { word: "during spring break", hint: "when the town was quiet" },
+  ];
+
+  const WHY = [
+    { word: "to find a shortcut",      hint: "they didn't want to take the long way" },
+    { word: "to look for a friend",    hint: "who had not come home" },
+    { word: "to escape the rain",      hint: "the storm came suddenly" },
+    { word: "to follow a strange sound", hint: "coming from the darkness" },
+    { word: "to retrieve something",   hint: "they had left behind" },
+    { word: "for a dare",              hint: "nobody believed the stories" },
+    { word: "to take a photo",         hint: "for social media" },
+    { word: "after a wrong turn",      hint: "the GPS had stopped working" },
+    { word: "to prove they were brave", hint: "everyone was watching" },
+    { word: "out of curiosity",        hint: "they could not resist" },
+    { word: "to find help",            hint: "the car had broken down" },
+    { word: "by accident",             hint: "they never planned to be there" },
+    { word: "to hide something",       hint: "no one could ever find" },
+    { word: "to explore",              hint: "the place had always been forbidden" },
+    { word: "to find a missing child", hint: "someone had called for help" },
+  ];
+
+  const NOUNS = [
+    { word: "shadow",    def: "a dark area where light does not reach" },
+    { word: "basement",  def: "a room below ground level in a building" },
+    { word: "mirror",    def: "a glass surface that reflects your image" },
+    { word: "footsteps", def: "the sounds made when someone walks" },
+    { word: "key",       def: "a small metal object used to open a lock" },
+    { word: "stranger",  def: "a person you do not know" },
+    { word: "phone",     def: "a device used to call or message people" },
+    { word: "window",    def: "an opening in a wall, usually with glass" },
+    { word: "photograph", def: "a picture taken with a camera" },
+    { word: "door",      def: "a panel that opens and closes an entrance" },
+    { word: "candle",    def: "a stick of wax that gives light when burning" },
+    { word: "newspaper", def: "a daily paper with news and stories" },
+    { word: "suitcase",  def: "a large bag used for carrying clothes when travelling" },
+    { word: "letter",    def: "a written message sent to someone" },
+    { word: "clock",     def: "a device that shows the time" },
+    { word: "whisper",   def: "a very quiet sound of someone talking" },
+    { word: "blood",     def: "the red liquid that flows inside the body" },
+    { word: "road",      def: "a long path used by vehicles and people" },
+    { word: "light",     def: "energy that allows you to see things" },
+    { word: "map",       def: "a drawing that shows places and routes" },
+    { word: "noise",     def: "a loud or unpleasant sound" },
+    { word: "bridge",    def: "a structure built over a river or road" },
+    { word: "grave",     def: "a place in the ground where a body is buried" },
+    { word: "warning",   def: "a message that tells you about danger" },
+    { word: "engine",    def: "the machine that makes a vehicle move" },
+    { word: "torch",     def: "a small light you carry in your hand" },
+    { word: "voice",     def: "the sound a person makes when speaking" },
+    { word: "smoke",     def: "the grey gas that comes from fire" },
+    { word: "car",       def: "a vehicle with four wheels and an engine" },
+    { word: "signal",    def: "a sign or sound used to give information" },
+  ];
+
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function pickUnique(arr, exclude) {
+    let item;
+    let attempts = 0;
+    do {
+      item = pick(arr);
+      attempts++;
+    } while (item.word === exclude && attempts < 20);
+    return item;
+  }
+
+  let lastWho   = null;
+  let lastWhere = null;
+  let lastWhen  = null;
+  let lastWhy   = null;
+  let lastNoun  = null;
+
+  function generateKeywords() {
+    const who   = pickUnique(WHO,   lastWho   ? lastWho.word   : null);
+    const where = pickUnique(WHERE, lastWhere ? lastWhere.word : null);
+    const when  = pickUnique(WHEN,  lastWhen  ? lastWhen.word  : null);
+    const why   = pickUnique(WHY,   lastWhy   ? lastWhy.word   : null);
+
+    lastWho = who; lastWhere = where; lastWhen = when; lastWhy = why;
+
+    const cards = document.querySelectorAll('.keyword-card');
+    cards.forEach(c => { c.classList.remove('animate'); void c.offsetWidth; });
+
+    document.getElementById('whoWord').textContent   = who.word;
+    document.getElementById('whoHint').textContent   = who.hint;
+    document.getElementById('whereWord').textContent = where.word;
+    document.getElementById('whereHint').textContent = where.hint;
+    document.getElementById('whenWord').textContent  = when.word;
+    document.getElementById('whenHint').textContent  = when.hint;
+    document.getElementById('whyWord').textContent   = why.word;
+    document.getElementById('whyHint').textContent   = why.hint;
+
+    const rots = [
+      (Math.random() * 4 - 2).toFixed(1),
+      (Math.random() * 3 - 1.5).toFixed(1),
+      (Math.random() * 4 - 2).toFixed(1),
+      (Math.random() * 4 - 2).toFixed(1),
+    ];
+    cards.forEach((c, i) => {
+      c.style.setProperty('--rot', rots[i] + 'deg');
+      c.classList.add('animate');
+    });
+  }
+
+  function generateNoun() {
+    const noun = pickUnique(NOUNS, lastNoun ? lastNoun.word : null);
+    lastNoun = noun;
+
+    const wordEl = document.getElementById('wbWord');
+    const metaEl = document.getElementById('wbMeta');
+    const defEl  = document.getElementById('wbDefinition');
+
+    wordEl.classList.add('hidden');
+    setTimeout(() => {
+      wordEl.textContent = noun.word;
+      defEl.textContent  = noun.def;
+      wordEl.classList.remove('hidden');
+      metaEl.style.display = 'flex';
+    }, 200);
+  }
+</script>
+</body>
+</html>
